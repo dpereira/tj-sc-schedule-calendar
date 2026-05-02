@@ -121,11 +121,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
 .modal .status-badge.completed { background: #c8e6c9; color: #2e7d32; }
 .modal .status-badge.pending { background: #ffecb3; color: #f57f17; }
-.modal .modal-link { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #1a237e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
+.modal .modal-link { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #1a237e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.9rem; line-height: 1; }
 .modal .modal-link:hover { background: #283593; }
-.modal-close { margin-top: 12px; padding: 8px 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
+.modal-close { margin-top: 12px; padding: 8px 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
 .modal-close:hover { background: #555; }
-.modal-toggle { margin-top: 8px; padding: 8px 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+.modal-toggle { margin-top: 8px; padding: 8px 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
