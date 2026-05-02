@@ -29,11 +29,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal .status-badge.completed { background: #c8e6c9; color: #2e7d32; }
 .modal .status-badge.pending { background: #ffecb3; color: #f57f17; }
 .modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.modal-link { display: inline-flex; align-items: center; height: 36px; padding: 0 16px; background: #1a237e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.9rem; box-sizing: border-box; }
+.modal-link { height: 36px; display: flex; align-items: center; padding: 0 16px; background: #1a237e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.9rem; }
 .modal-link:hover { background: #283593; }
-.modal-close { display: inline-flex; align-items: center; height: 36px; padding: 0 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; box-sizing: border-box; }
+.modal-close { height: 36px; display: flex; align-items: center; padding: 0 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
 .modal-close:hover { background: #555; }
-.modal-toggle { display: inline-flex; align-items: center; height: 36px; padding: 0 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; box-sizing: border-box; }
+.modal-toggle { height: 36px; display: flex; align-items: center; padding: 0 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
@@ -59,7 +59,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     <p><span class="label">Horário</span><br><span id="modal-time"></span></p>
     <p><span class="label">Status</span><br><span id="modal-status"></span></p>
     <div class="modal-actions">
-      <a class="modal-link" id="modal-link" target="_blank">Abrir aula</a>
+      <button class="modal-link" id="modal-link" onclick="openLink()">Abrir aula</button>
       <button class="modal-toggle" id="modal-toggle" onclick="toggleCurrentCompletion()">✓ Marcar concluída</button>
       <button class="modal-close" onclick="closeModal()">Fechar</button>
     </div>
@@ -697,8 +697,8 @@ function updateModal(e) {
   }
   const linkEl = document.getElementById('modal-link');
   if (p.link) {
-    linkEl.href = p.link;
-    linkEl.style.display = 'inline-block';
+    linkEl.style.display = 'inline-flex';
+    linkEl.dataset.url = p.link;
   } else {
     linkEl.style.display = 'none';
   }
@@ -744,6 +744,12 @@ document.addEventListener('DOMContentLoaded', function() {
   calendar.render();
   loadCompletions();
 });
+
+function openLink() {
+  const linkEl = document.getElementById('modal-link');
+  const url = linkEl.dataset.url;
+  if (url) window.open(url, '_blank');
+}
 
 function closeModal() {
   document.getElementById('modal').classList.remove('active');
