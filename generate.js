@@ -15,6 +15,7 @@
  */
 
 const fs = require('fs');
+const crypto = require('crypto');
 
 // ── Config ──────────────────────────────────────────────────────────
 const CONFIG = {
@@ -23,6 +24,7 @@ const CONFIG = {
   fullcalendarCss: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css',
   fullcalendarJs: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js',
   fullcalendarLocale: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js',
+  firebaseUrl: 'https://tj-sc-calendar-default-rtdb.firebaseio.com',
 };
 
 const COLOR_MAP = [
@@ -63,6 +65,10 @@ function escapeJs(str) {
     .replace(/\r/g, '');
 }
 
+function eventHash(nome, inicio) {
+  return crypto.createHash('md5').update(nome + '|' + new Date(inicio).toISOString()).digest('hex').substring(0, 12);
+}
+
 // ── Generate HTML ───────────────────────────────────────────────────
 
 function generate(events) {
@@ -75,8 +81,9 @@ function generate(events) {
     const topic = (e.nome || '').replace(/^[^|]+\|\s*/, '');
     const link = e.link || '';
     const classNames = completed ? '["completed-event"]' : '[]';
+    const eid = eventHash(e.nome, e.inicio);
 
-    return `    {title:'${escapeJs(e.nome)}',start:'${start}',end:'${end}',backgroundColor:'${color}',borderColor:'${color}',textColor:'#fff',classNames:${classNames},url:'${escapeJs(link)}',extendedProps:{subject:'${escapeJs(subject)}',topic:'${escapeJs(topic)}',completed:${completed},link:'${escapeJs(link)}'}}`;
+    return `    {id:'${eid}',title:'${escapeJs(e.nome)}',start:'${start}',end:'${end}',backgroundColor:'${color}',borderColor:'${color}',textColor:'#fff',classNames:${classNames},url:'${escapeJs(link)}',extendedProps:{eventId:'${eid}',subject:'${escapeJs(subject)}',topic:'${escapeJs(topic)}',completed:${completed},link:'${escapeJs(link)}'}}`;
   });
 
   const legendItems = COLOR_MAP
@@ -118,7 +125,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal .modal-link:hover { background: #283593; }
 .modal-close { margin-top: 12px; padding: 8px 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
 .modal-close:hover { background: #555; }
-.modal-actions { display: flex; align-items: center; flex-wrap: wrap; }
+.modal-toggle { padding: 8px 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
+.modal-toggle:hover { background: #ff6f00; }
+.modal-toggle.completed { background: #2e7d32; }
+.modal-toggle.completed:hover { background: #1b5e20; }
+.modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 </style>
 </head>
 <body>
@@ -142,18 +153,124 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     <p><span class="label">Status</span><br><span id="modal-status"></span></p>
     <div class="modal-actions">
       <a class="modal-link" id="modal-link" target="_blank">Abrir aula</a>
+      <button class="modal-toggle" id="modal-toggle" onclick="toggleCurrentCompletion()">✓ Marcar concluída</button>
       <button class="modal-close" onclick="closeModal()">Fechar</button>
     </div>
   </div>
 </div>
 
 <script>
+const FIREBASE_URL = '${CONFIG.firebaseUrl}';
 const events = [
 ${eventItems.join(',\n')}
 ];
 
+let calendar = null;
+let currentModalEventId = null;
+
+async function loadCompletions() {
+  try {
+    const res = await fetch(FIREBASE_URL + '/completions.json');
+    const completions = await res.json();
+    if (!completions) return;
+    for (const event of events) {
+      const eid = event.extendedProps.eventId || event.id;
+      if (eid && completions[eid] !== undefined) {
+        event.extendedProps.completed = completions[eid];
+        event.classNames = completions[eid] ? ['completed-event'] : [];
+      }
+    }
+    const calEvents = calendar.getEvents();
+    for (const ce of calEvents) {
+      const eid = ce.extendedProps.eventId || ce.id;
+      if (eid && completions[eid] !== undefined) {
+        ce.setExtendedProp('completed', completions[eid]);
+        ce.setProp('classNames', completions[eid] ? ['completed-event'] : []);
+      }
+    }
+    if (currentModalEventId) {
+      const modalEvent = calendar.getEventById(currentModalEventId);
+      if (modalEvent) updateModal(modalEvent);
+    }
+  } catch (e) {
+    console.warn('Falha ao carregar conclusões:', e);
+  }
+}
+
+async function toggleCompletion(eventId, currentState) {
+  const newState = !currentState;
+  try {
+    await fetch(FIREBASE_URL + '/completions/' + eventId + '.json', {
+      method: 'PUT',
+      body: JSON.stringify(newState),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const ce = calendar.getEventById(eventId);
+    if (ce) {
+      ce.setExtendedProp('completed', newState);
+      ce.setProp('classNames', newState ? ['completed-event'] : []);
+    }
+    const localEvent = events.find(e => (e.extendedProps.eventId || e.id) === eventId);
+    if (localEvent) {
+      localEvent.extendedProps.completed = newState;
+      localEvent.classNames = newState ? ['completed-event'] : [];
+    }
+    if (currentModalEventId === eventId) {
+      const modalEvent = calendar.getEventById(eventId);
+      if (modalEvent) updateModal(modalEvent);
+    }
+  } catch (e) {
+    console.warn('Falha ao salvar conclusão:', e);
+  }
+}
+
+function toggleCurrentCompletion() {
+  if (!currentModalEventId) return;
+  const ce = calendar.getEventById(currentModalEventId);
+  if (!ce) return;
+  toggleCompletion(currentModalEventId, ce.extendedProps.completed);
+}
+
+function updateModal(e) {
+  const p = e.extendedProps;
+  const start = e.start;
+  const end = e.end;
+
+  document.getElementById('modal-title').textContent = e.title;
+  document.getElementById('modal-subject').textContent = p.subject || '';
+  document.getElementById('modal-topic').textContent = p.topic || '';
+  document.getElementById('modal-date').textContent = start
+    ? start.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : '';
+  document.getElementById('modal-time').textContent =
+    (start ? start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '')
+    + ' - ' +
+    (end ? end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
+  const statusEl = document.getElementById('modal-status');
+  if (p.completed) {
+    statusEl.innerHTML = '<span class="status-badge completed">✔ Concluído</span>';
+  } else {
+    statusEl.innerHTML = '<span class="status-badge pending">⏳ Pendente</span>';
+  }
+  const linkEl = document.getElementById('modal-link');
+  if (p.link) {
+    linkEl.href = p.link;
+    linkEl.style.display = 'inline-block';
+  } else {
+    linkEl.style.display = 'none';
+  }
+  const toggleEl = document.getElementById('modal-toggle');
+  if (p.completed) {
+    toggleEl.textContent = '↩ Desmarcar';
+    toggleEl.className = 'modal-toggle completed';
+  } else {
+    toggleEl.textContent = '✓ Marcar concluída';
+    toggleEl.className = 'modal-toggle';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+  calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'dayGridMonth',
     locale: 'pt-br',
     firstDay: 0,
@@ -176,38 +293,13 @@ document.addEventListener('DOMContentLoaded', function() {
     events: events,
     eventClick: function(info) {
       info.jsEvent.preventDefault();
-      const e = info.event;
-      const p = e.extendedProps;
-      const start = e.start;
-      const end = e.end;
-
-      document.getElementById('modal-title').textContent = e.title;
-      document.getElementById('modal-subject').textContent = p.subject || '';
-      document.getElementById('modal-topic').textContent = p.topic || '';
-      document.getElementById('modal-date').textContent = start
-        ? start.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-        : '';
-      document.getElementById('modal-time').textContent =
-        (start ? start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '')
-        + ' - ' +
-        (end ? end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
-      const statusEl = document.getElementById('modal-status');
-      if (p.completed) {
-        statusEl.innerHTML = '<span class="status-badge completed">✔ Concluído</span>';
-      } else {
-        statusEl.innerHTML = '<span class="status-badge pending">⏳ Pendente</span>';
-      }
-      const linkEl = document.getElementById('modal-link');
-      if (p.link) {
-        linkEl.href = p.link;
-        linkEl.style.display = 'inline-block';
-      } else {
-        linkEl.style.display = 'none';
-      }
+      currentModalEventId = info.event.id || info.event.extendedProps.eventId;
+      updateModal(info.event);
       document.getElementById('modal').classList.add('active');
     }
   });
   calendar.render();
+  loadCompletions();
 });
 
 function closeModal() {
