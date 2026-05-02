@@ -121,15 +121,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
 .modal .status-badge.completed { background: #c8e6c9; color: #2e7d32; }
 .modal .status-badge.pending { background: #ffecb3; color: #f57f17; }
-.modal .modal-link { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #1a237e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.9rem; line-height: 1; }
-.modal .modal-link:hover { background: #283593; }
-.modal-close { margin-top: 12px; padding: 8px 20px; background: #666; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+.modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.modal-actions a, .modal-actions button { height: 36px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.9rem; border-radius: 4px; box-sizing: border-box; }
+.modal-link { padding: 0 16px; background: #1a237e; color: #fff; text-decoration: none; }
+.modal-link:hover { background: #283593; }
+.modal-close { padding: 0 20px; background: #666; color: #fff; border: none; cursor: pointer; }
 .modal-close:hover { background: #555; }
-.modal-toggle { margin-top: 8px; padding: 8px 16px; background: #ff8f00; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+.modal-toggle { padding: 0 16px; background: #ff8f00; color: #fff; border: none; cursor: pointer; }
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
-.modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 </style>
 </head>
 <body>
