@@ -130,6 +130,19 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
+@media (max-width: 768px) {
+  .header { flex-direction: column; gap: 8px; text-align: center; }
+  .header h1 { font-size: 1rem; }
+  .legend { font-size: 0.7rem; padding: 8px 12px; }
+  #calendar { padding: 0 4px; }
+  .modal { padding: 16px; max-width: 100%; width: 95%; }
+  .fc .fc-toolbar-title { font-size: 0.95rem; }
+  .fc .fc-button { font-size: 0.7rem; padding: 4px 8px; }
+  .fc .fc-toolbar.fc-header-toolbar { flex-wrap: wrap; gap: 4px; }
+  .fc .fc-toolbar > * { display: flex; flex-wrap: wrap; justify-content: center; }
+  .fc-list-day-text, .fc-list-day-side-text { font-size: 0.85rem; }
+  .fc-list-event-title { font-size: 0.8rem; }
+}
 </style>
 </head>
 <body>
@@ -279,16 +292,18 @@ document.addEventListener('DOMContentLoaded', function() {
     dayMaxEvents: true,
     nowIndicator: true,
     height: 'auto',
+    initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
     },
     buttonText: {
       today: 'Hoje',
       month: 'Mês',
       week: 'Semana',
-      day: 'Dia'
+      day: 'Dia',
+      listWeek: 'Lista'
     },
     events: events,
     eventClick: function(info) {
@@ -300,6 +315,19 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   calendar.render();
   loadCompletions();
+});
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function() {
+    var mobileView = 'listWeek';
+    var desktopView = 'dayGridMonth';
+    var targetView = window.innerWidth < 768 ? mobileView : desktopView;
+    if (calendar.view.type !== targetView && (targetView === mobileView || targetView === desktopView)) {
+      calendar.changeView(targetView);
+    }
+  }, 300);
 });
 
 function openLink() {
