@@ -1,5 +1,9 @@
 # Agent Instructions
 
+> **⚠️ Before any work on this repository, consult the project memories in supermemory (`scope: "project"`).**
+> Search with: `supermemory search "tj-sc-schedule" scope:project` or `supermemory search "GO schedule" scope:project`
+> They contain critical context on data extraction, HTML generation rules, and learned patterns.
+
 ## Project Overview
 
 This is a static HTML calendar for a study schedule named "GO" on Gran Cursos Online (TJ SC prep). It displays 537 class events from May 4 to June 29, 2026.
