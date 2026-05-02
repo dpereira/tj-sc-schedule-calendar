@@ -1,6 +1,6 @@
-# GO Schedule Calendar
+# TJ SC Schedule Calendar
 
-Interactive study schedule calendar for the **GO** cronograma on Gran Cursos Online.
+Interactive study schedule calendar for the **GO** cronograma (TJ SC prep) on Gran Cursos Online.
 
 **Period:** May 4 → June 29, 2026
 **Events:** 537 (264 May + 273 June), focused on TJ SC (Tribunal de Justiça de Santa Catarina) prep.
