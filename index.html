@@ -37,6 +37,23 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
+.modal-toggle.disabled { background: #bdbdbd; color: #fff; cursor: not-allowed; }
+.modal-toggle.disabled:hover { background: #bdbdbd; }
+.auth-overlay { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; }
+.auth-card { background: #fff; border-radius: 12px; padding: 32px; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; }
+.auth-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.auth-card h2 { font-size: 1.2rem; color: #1a237e; margin-bottom: 4px; }
+.auth-subtitle { font-size: 0.85rem; color: #666; margin-bottom: 20px; }
+.auth-input { width: 100%; padding: 10px 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; }
+.auth-input:focus { outline: none; border-color: #1a237e; }
+.auth-input[readonly] { background: #f5f5f5; color: #333; }
+.auth-error { color: #d32f2f; font-size: 0.85rem; min-height: 20px; margin: 0; }
+.auth-button { width: 100%; padding: 10px; background: #1a237e; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; margin-top: 4px; }
+.auth-button:hover { background: #283593; }
+.auth-hint { font-size: 0.78rem; color: #999; margin-top: 16px; line-height: 1.4; }
+.auth-dismiss { position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #999; padding: 4px 8px; line-height: 1; }
+.auth-dismiss:hover { color: #333; }
+.auth-card { position: relative; }
 @media (max-width: 768px) {
   .header { flex-direction: column; gap: 8px; text-align: center; }
   .header h1 { font-size: 1rem; }
@@ -63,6 +80,20 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 <div id="calendar"></div>
 
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <button class="auth-dismiss" onclick="dismissLogin()">✕</button>
+    <div class="auth-icon">🔐</div>
+    <h2>Autenticação necessária</h2>
+    <p class="auth-subtitle">Faça login para marcar aulas como concluídas</p>
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email" value="rockin.jack@gmail.com" readonly>
+    <input class="auth-input" id="authPassword" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')handleLogin()">
+    <p class="auth-error" id="authError"></p>
+    <button class="auth-button" onclick="handleLogin()">Entrar</button>
+    <p class="auth-hint">A visualização do calendário é pública.<br>O login é necessário apenas para alterar conclusões.</p>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h2 id="modal-title"></h2>
@@ -81,6 +112,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 <script>
 const FIREBASE_URL = 'https://tj-sc-calendar-default-rtdb.firebaseio.com';
+const WEB_API_KEY = 'AIzaSyACXnKX5-YpBOOsIBDg2YwjPDDo4pjeCRw';
 const events = [
     {id:'880f311ca4ad',title:'Língua Portuguesa | 1 - Apresentação da Disciplina - Interpretação de Texto - Técnico Judiciário Auxiliar',start:'2026-05-04T12:00:00.000Z',end:'2026-05-04T12:14:08.000Z',backgroundColor:'#2196F3',borderColor:'#2196F3',textColor:'#fff',classNames:["completed-event"],url:'https://www.grancursosonline.com.br/aluno/curso/video/codigo/FRRDqvPMaMM%3D/v/nvgekMts0G8%3D/c/tPFZz03zdWU%3D',extendedProps:{eventId:'880f311ca4ad',subject:'Língua Portuguesa',topic:'1 - Apresentação da Disciplina - Interpretação de Texto - Técnico Judiciário Auxiliar',completed:true,link:'https://www.grancursosonline.com.br/aluno/curso/video/codigo/FRRDqvPMaMM%3D/v/nvgekMts0G8%3D/c/tPFZz03zdWU%3D'}},
     {id:'b6f396110fe0',title:'Língua Portuguesa | 1 - Interpretação e Compreensão de Texto',start:'2026-05-04T12:15:08.000Z',end:'2026-05-04T12:55:14.000Z',backgroundColor:'#2196F3',borderColor:'#2196F3',textColor:'#fff',classNames:["completed-event"],url:'https://www.grancursosonline.com.br/aluno/curso/video/codigo/FRRDqvPMaMM%3D/v/BuNCUqKHPFA%3D/c/tPFZz03zdWU%3D',extendedProps:{eventId:'b6f396110fe0',subject:'Língua Portuguesa',topic:'1 - Interpretação e Compreensão de Texto',completed:true,link:'https://www.grancursosonline.com.br/aluno/curso/video/codigo/FRRDqvPMaMM%3D/v/BuNCUqKHPFA%3D/c/tPFZz03zdWU%3D'}},
@@ -623,6 +655,40 @@ const events = [
 
 let calendar = null;
 let currentModalEventId = null;
+let authToken = null;
+
+async function handleLogin() {
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const errorEl = document.getElementById('authError');
+  if (!password) { errorEl.textContent = 'Digite a senha.'; return; }
+  try {
+    const res = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + WEB_API_KEY, {
+      method: 'POST',
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.error) {
+      errorEl.textContent = 'Email ou senha inválidos.';
+      return;
+    }
+    authToken = data.idToken;
+    document.getElementById('authOverlay').style.display = 'none';
+    errorEl.textContent = '';
+    document.getElementById('authPassword').value = '';
+  } catch (e) {
+    errorEl.textContent = 'Erro de conexão. Tente novamente.';
+  }
+}
+
+function dismissLogin() {
+  document.getElementById('authOverlay').style.display = 'none';
+}
+
+document.getElementById('authOverlay').addEventListener('click', function(e) {
+  if (e.target === this) dismissLogin();
+});
 
 async function loadCompletions() {
   try {
@@ -655,8 +721,9 @@ async function loadCompletions() {
 
 async function toggleCompletion(eventId, currentState) {
   const newState = !currentState;
+  if (!authToken) return;
   try {
-    await fetch(FIREBASE_URL + '/completions/' + eventId + '.json', {
+    await fetch(FIREBASE_URL + '/completions/' + eventId + '.json?auth=' + authToken, {
       method: 'PUT',
       body: JSON.stringify(newState),
       headers: { 'Content-Type': 'application/json' }
@@ -681,6 +748,7 @@ async function toggleCompletion(eventId, currentState) {
 }
 
 function toggleCurrentCompletion() {
+  if (!authToken) return;
   if (!currentModalEventId) return;
   const ce = calendar.getEventById(currentModalEventId);
   if (!ce) return;
@@ -716,7 +784,10 @@ function updateModal(e) {
     linkEl.style.display = 'none';
   }
   const toggleEl = document.getElementById('modal-toggle');
-  if (p.completed) {
+  if (!authToken) {
+    toggleEl.textContent = 'Faça login para alterar';
+    toggleEl.className = 'modal-toggle disabled';
+  } else if (p.completed) {
     toggleEl.textContent = '↩ Desmarcar';
     toggleEl.className = 'modal-toggle completed';
   } else {
