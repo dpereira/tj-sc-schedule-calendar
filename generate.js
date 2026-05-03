@@ -25,6 +25,7 @@ const CONFIG = {
   fullcalendarJs: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js',
   fullcalendarLocale: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js',
   firebaseUrl: 'https://tj-sc-calendar-default-rtdb.firebaseio.com',
+  webApiKey: 'AIzaSyACXnKX5-YpBOOsIBDg2YwjPDDo4pjeCRw',
 };
 
 const COLOR_MAP = [
@@ -130,6 +131,18 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
+.auth-overlay { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; }
+.auth-card { background: #fff; border-radius: 12px; padding: 32px; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.auth-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.auth-card h2 { font-size: 1.2rem; color: #1a237e; margin-bottom: 4px; }
+.auth-subtitle { font-size: 0.85rem; color: #666; margin-bottom: 20px; }
+.auth-input { width: 100%; padding: 10px 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; }
+.auth-input:focus { outline: none; border-color: #1a237e; }
+.auth-input[readonly] { background: #f5f5f5; color: #333; }
+.auth-error { color: #d32f2f; font-size: 0.85rem; min-height: 20px; margin: 0; }
+.auth-button { width: 100%; padding: 10px; background: #1a237e; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; margin-top: 4px; }
+.auth-button:hover { background: #283593; }
+.auth-hint { font-size: 0.78rem; color: #999; margin-top: 16px; line-height: 1.4; }
 @media (max-width: 768px) {
   .header { flex-direction: column; gap: 8px; text-align: center; }
   .header h1 { font-size: 1rem; }
@@ -156,6 +169,19 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 <div id="calendar"></div>
 
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-icon">🔐</div>
+    <h2>Autenticação necessária</h2>
+    <p class="auth-subtitle">Faça login para marcar aulas como concluídas</p>
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email" value="rockin.jack@gmail.com" readonly>
+    <input class="auth-input" id="authPassword" type="password" placeholder="Senha">
+    <p class="auth-error" id="authError"></p>
+    <button class="auth-button" onclick="handleLogin()">Entrar</button>
+    <p class="auth-hint">A visualização do calendário é pública.<br>O login é necessário apenas para alterar conclusões.</p>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h2 id="modal-title"></h2>
@@ -174,12 +200,39 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 <script>
 const FIREBASE_URL = '${CONFIG.firebaseUrl}';
+const WEB_API_KEY = '${CONFIG.webApiKey}';
 const events = [
 ${eventItems.join(',\n')}
 ];
 
 let calendar = null;
 let currentModalEventId = null;
+let authToken = null;
+
+async function handleLogin() {
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const errorEl = document.getElementById('authError');
+  if (!password) { errorEl.textContent = 'Digite a senha.'; return; }
+  try {
+    const res = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + WEB_API_KEY, {
+      method: 'POST',
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.error) {
+      errorEl.textContent = 'Email ou senha inválidos.';
+      return;
+    }
+    authToken = data.idToken;
+    document.getElementById('authOverlay').style.display = 'none';
+    errorEl.textContent = '';
+    document.getElementById('authPassword').value = '';
+  } catch (e) {
+    errorEl.textContent = 'Erro de conexão. Tente novamente.';
+  }
+}
 
 async function loadCompletions() {
   try {
@@ -212,8 +265,9 @@ async function loadCompletions() {
 
 async function toggleCompletion(eventId, currentState) {
   const newState = !currentState;
+  if (!authToken) return;
   try {
-    await fetch(FIREBASE_URL + '/completions/' + eventId + '.json', {
+    await fetch(FIREBASE_URL + '/completions/' + eventId + '.json?auth=' + authToken, {
       method: 'PUT',
       body: JSON.stringify(newState),
       headers: { 'Content-Type': 'application/json' }
