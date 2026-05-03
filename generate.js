@@ -131,8 +131,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .modal-toggle:hover { background: #ff6f00; }
 .modal-toggle.completed { background: #2e7d32; }
 .modal-toggle.completed:hover { background: #1b5e20; }
+.modal-toggle.disabled { background: #bdbdbd; color: #fff; cursor: not-allowed; }
+.modal-toggle.disabled:hover { background: #bdbdbd; }
 .auth-overlay { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 20000; justify-content: center; align-items: center; }
-.auth-card { background: #fff; border-radius: 12px; padding: 32px; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.auth-card { background: #fff; border-radius: 12px; padding: 32px; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative; }
 .auth-icon { font-size: 2.5rem; margin-bottom: 8px; }
 .auth-card h2 { font-size: 1.2rem; color: #1a237e; margin-bottom: 4px; }
 .auth-subtitle { font-size: 0.85rem; color: #666; margin-bottom: 20px; }
@@ -143,6 +145,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .auth-button { width: 100%; padding: 10px; background: #1a237e; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; margin-top: 4px; }
 .auth-button:hover { background: #283593; }
 .auth-hint { font-size: 0.78rem; color: #999; margin-top: 16px; line-height: 1.4; }
+.auth-dismiss { position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #999; padding: 4px 8px; line-height: 1; }
+.auth-dismiss:hover { color: #333; }
+.auth-card { position: relative; }
 @media (max-width: 768px) {
   .header { flex-direction: column; gap: 8px; text-align: center; }
   .header h1 { font-size: 1rem; }
@@ -171,11 +176,12 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-card">
+    <button class="auth-dismiss" onclick="dismissLogin()">✕</button>
     <div class="auth-icon">🔐</div>
     <h2>Autenticação necessária</h2>
     <p class="auth-subtitle">Faça login para marcar aulas como concluídas</p>
     <input class="auth-input" id="authEmail" type="email" placeholder="Email" value="rockin.jack@gmail.com" readonly>
-    <input class="auth-input" id="authPassword" type="password" placeholder="Senha">
+    <input class="auth-input" id="authPassword" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')handleLogin()">
     <p class="auth-error" id="authError"></p>
     <button class="auth-button" onclick="handleLogin()">Entrar</button>
     <p class="auth-hint">A visualização do calendário é pública.<br>O login é necessário apenas para alterar conclusões.</p>
@@ -233,6 +239,14 @@ async function handleLogin() {
     errorEl.textContent = 'Erro de conexão. Tente novamente.';
   }
 }
+
+function dismissLogin() {
+  document.getElementById('authOverlay').style.display = 'none';
+}
+
+document.getElementById('authOverlay').addEventListener('click', function(e) {
+  if (e.target === this) dismissLogin();
+});
 
 async function loadCompletions() {
   try {
@@ -292,6 +306,7 @@ async function toggleCompletion(eventId, currentState) {
 }
 
 function toggleCurrentCompletion() {
+  if (!authToken) return;
   if (!currentModalEventId) return;
   const ce = calendar.getEventById(currentModalEventId);
   if (!ce) return;
@@ -327,7 +342,10 @@ function updateModal(e) {
     linkEl.style.display = 'none';
   }
   const toggleEl = document.getElementById('modal-toggle');
-  if (p.completed) {
+  if (!authToken) {
+    toggleEl.textContent = 'Faça login para alterar';
+    toggleEl.className = 'modal-toggle disabled';
+  } else if (p.completed) {
     toggleEl.textContent = '↩ Desmarcar';
     toggleEl.className = 'modal-toggle completed';
   } else {
