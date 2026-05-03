@@ -111,14 +111,18 @@ Gran Cursos cronograma page
 
 - **Database**: Firebase Realtime Database at `https://tj-sc-calendar-default-rtdb.firebaseio.com`
 - **Project**: `tj-sc-calendar` (Google Firebase, Spark free tier)
-- **Security rules**: Test mode (open read/write, no auth needed)
+- **Security rules**: Reads public, writes restricted to `auth.token.email === 'rockin.jack@gmail.com'`
 - **Data model**: `/completions/{eventId}: true/false`
 - **Event ID**: 12-char MD5 hex prefix of `nome + '|' + inicio` (deterministic across regenerations)
-- **How it works**:
-  - On page load, `loadCompletions()` fetches `/completions.json` from Firebase and merges into the embedded events
-  - On toggle, `toggleCompletion()` sends `PUT /completions/{eventId}.json` with the new state
-  - UI updates optimistically, then confirms via the Firebase response
+- **Auth flow**:
+  - Page shows a login overlay on load (calendar visible behind it)
+  - User enters password for `rockin.jack@gmail.com`
+  - `handleLogin()` POSTs to `identitytoolkit.googleapis.com/v1/accounts:signInWithPassword`
+  - On success, `idToken` stored in memory and login overlay dismissed
+  - On toggle, `idToken` passed as `?auth=` query param to Firebase PUT
+  - Security rules verify `auth.token.email` matches on the server
 - **No library needed**: Uses plain `fetch()` — no Firebase SDK required
+- **Web API Key**: `AIzaSyACXnKX5-YpBOOsIBDg2YwjPDDo4pjeCRw` (public by design)
 
 ### Modal buttons
 
