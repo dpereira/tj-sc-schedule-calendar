@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const CONFIG = {
   title: 'TJ SC Schedule Calendar',
   courseUrl: 'https://www.grancursosonline.com.br/aluno/cronograma/c0f66fb2-244f-4449-a5b3-73f11e8a04a3',
+  testeCourseUrl: 'https://www.grancursosonline.com.br/aluno/cronograma/c18cacdb-2e08-433b-8e9c-00e40d3e436f',
   fullcalendarCss: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css',
   fullcalendarJs: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js',
   fullcalendarLocale: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js',
@@ -72,7 +73,10 @@ function eventHash(nome, inicio) {
 
 // ── Generate HTML ───────────────────────────────────────────────────
 
-function generate(events) {
+function generate(events, scheduleName) {
+  const pageTitle = scheduleName ? 'Cronograma de Estudos' : CONFIG.title;
+  const headerTitle = scheduleName ? 'Cronograma de Estudos' : '📚 TJ SC — Cronograma de Estudos';
+  const courseUrl = scheduleName ? CONFIG.testeCourseUrl : CONFIG.courseUrl;
   const eventItems = events.map((e, i) => {
     const start = new Date(e.inicio).toISOString();
     const end = new Date(e.fim).toISOString();
@@ -97,7 +101,7 @@ function generate(events) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${CONFIG.title}</title>
+<title>${pageTitle}</title>
 <link rel="stylesheet" href="${CONFIG.fullcalendarCss}">
 <script src="${CONFIG.fullcalendarJs}"></script>
 <script src="${CONFIG.fullcalendarLocale}"></script>
@@ -166,8 +170,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 <body>
 
 <div class="header">
-  <h1>📚 TJ SC — Cronograma de Estudos</h1>
-  <a href="${CONFIG.courseUrl}" target="_blank">Acessar Gran Cursos</a>
+  <h1>📚 ${headerTitle}</h1>
+  <a href="${courseUrl}" target="_blank">Acessar Gran Cursos</a>
 </div>
 
 <div class="legend">${legendItems}</div>
@@ -424,9 +428,21 @@ document.addEventListener('keydown', function(e) {
 
 // ── Main ────────────────────────────────────────────────────────────
 
+let scheduleName = null;
+const args = [];
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === '--schedule') {
+    scheduleName = process.argv[++i];
+  } else {
+    args.push(process.argv[i]);
+  }
+}
+
 let input = '';
-if (process.argv[2]) {
-  input = fs.readFileSync(process.argv[2], 'utf-8');
+if (scheduleName) {
+  input = fs.readFileSync('events-' + scheduleName + '.json', 'utf-8');
+} else if (args[0]) {
+  input = fs.readFileSync(args[0], 'utf-8');
 } else {
   input = fs.readFileSync('/dev/stdin', 'utf-8');
 }
@@ -444,4 +460,4 @@ if (!Array.isArray(events)) {
   process.exit(1);
 }
 
-console.log(generate(events));
+console.log(generate(events, scheduleName));
